@@ -47,6 +47,18 @@
     <div id="bottom-sheet-content"></div>
   </div>
 
+  <!-- ── Wikipedia modal overlay ── -->
+  <div id="wiki-modal" class="hidden">
+    <div id="wiki-modal-box">
+      <div class="wiki-toolbar">
+        <button class="wiki-back" id="wiki-modal-back" aria-label="Back">&#8592; Back</button>
+        <a class="wiki-open-ext" id="wiki-modal-ext" href="#" target="_blank" rel="noopener" title="Open in new tab">&#8599;</a>
+        <button id="wiki-modal-close" aria-label="Close">&times;</button>
+      </div>
+      <iframe id="wiki-modal-iframe" class="wiki-iframe" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+    </div>
+  </div>
+
   <!-- ── Blocking overlay ── -->
   <div id="overlay" class="hidden">
     <div class="overlay-spinner"></div>

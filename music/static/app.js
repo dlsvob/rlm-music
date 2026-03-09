@@ -248,10 +248,24 @@ function renderEgoGraph(data) {
   });
 
   // ── Force simulation ──
+  // Position the center node in the visible graph area, accounting for
+  // the detail panel (320px sidebar on desktop) or bottom sheet (mobile).
+  // This ensures the selected artist is visually centered in the usable viewport.
   const centerNode = data.nodes.find(n => n.mbid === centerMbid);
   if (centerNode) {
-    centerNode.fx = width / 2;
-    centerNode.fy = height / 2;
+    if (mobile) {
+      // On mobile, the bottom sheet covers roughly the lower 40% of the screen.
+      // Place the center node in the upper portion of the viewport.
+      centerNode.fx = width / 2;
+      centerNode.fy = height * 0.35;
+    } else {
+      // On desktop, the detail panel is 320px on the right side.
+      // Center the node in the remaining graph area (left of the panel).
+      const panelWidth = 320;
+      const graphAreaWidth = width - panelWidth;
+      centerNode.fx = graphAreaWidth / 2;
+      centerNode.fy = height / 2;
+    }
   }
 
   if (simulation) simulation.stop();
@@ -259,7 +273,7 @@ function renderEgoGraph(data) {
   simulation = d3.forceSimulation(data.nodes)
     .force("link", d3.forceLink(allLinks).id(d => d.mbid).distance(mobile ? 90 : 110))
     .force("charge", d3.forceManyBody().strength(mobile ? -250 : -350))
-    .force("center", d3.forceCenter(width / 2, height / 2).strength(0.05))
+    .force("center", d3.forceCenter(centerNode ? centerNode.fx : width / 2, centerNode ? centerNode.fy : height / 2).strength(0.05))
     .force("collision", d3.forceCollide().radius(d => d.mbid === centerMbid ? centerR + 8 : baseR + 6))
     .on("tick", () => {
       link
@@ -523,11 +537,11 @@ function wireDetailLinks(container) {
             return `<div class="album-item"><span>${esc(r.title)}</span>${yr}</div>`;
           }).join("");
 
-          // Wire album links to open Wikipedia inline (same back-button UX)
+          // Wire album links to open Wikipedia in the modal overlay
           albumList.querySelectorAll(".album-wiki-link").forEach(a => {
             a.addEventListener("click", (e) => {
               e.preventDefault();
-              showWikipediaInline(a.href);
+              showWikipediaModal(a.href, null);
             });
           });
         })
@@ -628,61 +642,61 @@ function esc(str) {
   return d.innerHTML;
 }
 
+// ── Wikipedia modal DOM refs ──
+const wikiModal   = document.getElementById("wiki-modal");
+const wikiIframe  = document.getElementById("wiki-modal-iframe");
+const wikiExtLink = document.getElementById("wiki-modal-ext");
+const wikiBackBtn = document.getElementById("wiki-modal-back");
+const wikiCloseBtn = document.getElementById("wiki-modal-close");
+
+// Stores the callback to run when "Back" is pressed in the Wikipedia modal.
+// If null, back just closes the modal (no navigation side-effect).
+let wikiOnBack = null;
+
 /**
- * Show a Wikipedia URL inline in the detail panel / bottom sheet.
- *
- * Replaces the panel content with an iframe and a back button.
- * The back button either restores the previous detail view, or runs
- * an optional onBack callback (used to navigate to a new artist).
+ * Show a Wikipedia URL in the full-screen modal overlay.
  *
  * Uses Wikipedia's mobile-optimized domain (en.m.wikipedia.org) for
- * cleaner rendering inside the narrow panel/sheet.
+ * cleaner rendering inside the iframe.
  *
  * @param {string} url - The Wikipedia URL to display.
  * @param {Function|null} onBack - Optional callback to run when back is pressed.
- *                                  If null, restores the previous panel content.
+ *                                  If null, back simply closes the modal.
  */
-function showWikipediaInline(url, onBack) {
-  // Rewrite to mobile Wikipedia for better fit in narrow panel
+function showWikipediaModal(url, onBack) {
+  // Rewrite to mobile Wikipedia for better fit in the iframe
   const mobileUrl = url.replace("//en.wikipedia.org/", "//en.m.wikipedia.org/");
   const desktopUrl = url.replace("//en.m.wikipedia.org/", "//en.wikipedia.org/");
 
-  const iframeHtml = `
-    <div class="wiki-view">
-      <div class="wiki-toolbar">
-        <button class="wiki-back" aria-label="Back to detail">&#8592; Back</button>
-        <a class="wiki-open-ext" href="${esc(desktopUrl)}" target="_blank" rel="noopener" title="Open in new tab">&#8599;</a>
-      </div>
-      <iframe class="wiki-iframe" src="${esc(mobileUrl)}" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
-    </div>
-  `;
+  wikiIframe.src = mobileUrl;
+  wikiExtLink.href = desktopUrl;
+  wikiOnBack = onBack || null;
 
-  const container = isMobile() ? bottomSheetContent : detailContent;
-  const savedHtml = container.innerHTML;
+  // Show/hide the back button depending on whether there's a back action
+  wikiBackBtn.style.display = onBack ? "" : "none";
 
-  container.innerHTML = iframeHtml;
-
-  if (isMobile()) {
-    bottomSheet.classList.remove("hidden");
-    bottomSheet.classList.add("wiki-fullscreen");
-  } else {
-    detailPanel.classList.remove("hidden");
-  }
-
-  container.querySelector(".wiki-back").addEventListener("click", () => {
-    if (isMobile()) {
-      bottomSheet.classList.remove("wiki-fullscreen");
-    }
-    if (onBack) {
-      // Custom back action (e.g. navigate to a new artist)
-      onBack();
-    } else {
-      // Default: restore the previous panel content
-      container.innerHTML = savedHtml;
-      wireDetailLinks(container);
-    }
-  });
+  wikiModal.classList.remove("hidden");
 }
+
+/** Close the Wikipedia modal and clear its iframe to stop loading. */
+function closeWikiModal() {
+  wikiModal.classList.add("hidden");
+  wikiIframe.src = "about:blank";
+  wikiOnBack = null;
+}
+
+// Wire modal buttons once (they persist in the DOM across uses)
+wikiCloseBtn.addEventListener("click", closeWikiModal);
+wikiBackBtn.addEventListener("click", () => {
+  const cb = wikiOnBack;
+  closeWikiModal();
+  if (cb) cb();
+});
+
+// Click on the backdrop (outside the modal box) closes the modal
+wikiModal.addEventListener("click", (e) => {
+  if (e.target === wikiModal) closeWikiModal();
+});
 
 /**
  * Resolve an artist name to a Wikipedia URL via opensearch, then show it inline.
@@ -691,7 +705,7 @@ function showWikipediaInline(url, onBack) {
 async function openWikipedia(name) {
   if (!name) return;
   const url = await resolveWikipediaUrl(name);
-  showWikipediaInline(url, null);
+  showWikipediaModal(url, null);
 }
 
 /**
@@ -701,7 +715,7 @@ async function openWikipedia(name) {
 async function openWikipediaAndNavigate(name, mbid) {
   if (!name) return;
   const url = await resolveWikipediaUrl(name);
-  showWikipediaInline(url, () => {
+  showWikipediaModal(url, () => {
     navigateTo(mbid, name);
   });
 }
