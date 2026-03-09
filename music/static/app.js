@@ -506,10 +506,18 @@ function wireDetailLinks(container) {
           albumList.innerHTML = releases.map(r => {
             const yr = r.year ? `<span class="album-year">${r.year}</span>` : "";
             if (r.wikipedia_url) {
-              return `<div class="album-item"><a href="${esc(r.wikipedia_url)}" target="_blank" rel="noopener">${esc(r.title)}</a>${yr}</div>`;
+              return `<div class="album-item"><a class="album-wiki-link" href="${esc(r.wikipedia_url)}">${esc(r.title)}</a>${yr}</div>`;
             }
             return `<div class="album-item"><span>${esc(r.title)}</span>${yr}</div>`;
           }).join("");
+
+          // Wire album links to open Wikipedia inline (same back-button UX)
+          albumList.querySelectorAll(".album-wiki-link").forEach(a => {
+            a.addEventListener("click", (e) => {
+              e.preventDefault();
+              showWikipediaInline(a.href);
+            });
+          });
         })
         .catch(() => {
           albumList.innerHTML = '<div class="album-loading">Could not load albums</div>';
@@ -609,40 +617,27 @@ function esc(str) {
 }
 
 /**
- * Show an artist's Wikipedia page inline in the detail panel / bottom sheet.
+ * Show a Wikipedia URL inline in the detail panel / bottom sheet.
  *
- * Resolves the name to the correct Wikipedia article via opensearch,
- * then replaces the panel content with an iframe and a back button.
- * The back button restores the previous detail view.
+ * Replaces the panel content with an iframe and a back button.
+ * The back button restores the previous detail view. Used by both
+ * artist name clicks (via openWikipedia) and album link clicks.
  *
  * Uses Wikipedia's mobile-optimized domain (en.m.wikipedia.org) for
  * cleaner rendering inside the narrow panel/sheet.
  */
-async function openWikipedia(name) {
-  if (!name) return;
-  const fallback = `https://en.m.wikipedia.org/wiki/Special:Search/${encodeURIComponent(name)}`;
+function showWikipediaInline(url) {
+  // Rewrite to mobile Wikipedia for better fit in narrow panel
+  const mobileUrl = url.replace("//en.wikipedia.org/", "//en.m.wikipedia.org/");
+  const desktopUrl = url.replace("//en.m.wikipedia.org/", "//en.wikipedia.org/");
 
-  let url = fallback;
-  try {
-    const resp = await fetch(
-      `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(name)}&limit=1&namespace=0&format=json&origin=*`
-    );
-    const data = await resp.json();
-    const resolved = data[3]?.[0];
-    if (resolved) {
-      // Rewrite to mobile Wikipedia for better fit in narrow panel
-      url = resolved.replace("//en.wikipedia.org/", "//en.m.wikipedia.org/");
-    }
-  } catch { /* use fallback */ }
-
-  // Build the iframe view with a back button
   const iframeHtml = `
     <div class="wiki-view">
       <div class="wiki-toolbar">
         <button class="wiki-back" aria-label="Back to detail">&#8592; Back</button>
-        <a class="wiki-open-ext" href="${esc(url.replace('en.m.', 'en.'))}" target="_blank" rel="noopener" title="Open in new tab">&#8599;</a>
+        <a class="wiki-open-ext" href="${esc(desktopUrl)}" target="_blank" rel="noopener" title="Open in new tab">&#8599;</a>
       </div>
-      <iframe class="wiki-iframe" src="${esc(url)}" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+      <iframe class="wiki-iframe" src="${esc(mobileUrl)}" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
     </div>
   `;
 
@@ -652,10 +647,8 @@ async function openWikipedia(name) {
 
   container.innerHTML = iframeHtml;
 
-  // Make sure the panel/sheet is visible
   if (isMobile()) {
     bottomSheet.classList.remove("hidden");
-    // Expand bottom sheet to full height for reading
     bottomSheet.classList.add("wiki-fullscreen");
   } else {
     detailPanel.classList.remove("hidden");
@@ -669,6 +662,25 @@ async function openWikipedia(name) {
       bottomSheet.classList.remove("wiki-fullscreen");
     }
   });
+}
+
+/**
+ * Resolve an artist name to a Wikipedia URL via opensearch, then show it inline.
+ */
+async function openWikipedia(name) {
+  if (!name) return;
+  const fallback = `https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent(name)}`;
+
+  let url = fallback;
+  try {
+    const resp = await fetch(
+      `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(name)}&limit=1&namespace=0&format=json&origin=*`
+    );
+    const data = await resp.json();
+    url = data[3]?.[0] || fallback;
+  } catch { /* use fallback */ }
+
+  showWikipediaInline(url);
 }
 
 
