@@ -229,11 +229,17 @@ function renderEgoGraph(data) {
     .text(d => `+${d.total_edges}`);
 
   // ── Node interactions ──
+  // Single click → open the artist's Wikipedia page in a new tab
   node.on("click", (event, d) => {
     event.stopPropagation();
-    if (d.mbid === centerMbid) {
-      showDetail(d);
-    } else {
+    showDetail(d);
+    openWikipedia(d.name);
+  });
+
+  // Double click → re-center the graph on that artist (ego-graph navigation)
+  node.on("dblclick", (event, d) => {
+    event.stopPropagation();
+    if (d.mbid !== centerMbid) {
       navigateTo(d.mbid, d.name);
     }
   });
@@ -443,12 +449,12 @@ function groupEdges(mbid, data) {
 
 /** Wire click handlers on detail items: name navigates, chevron toggles albums. */
 function wireDetailLinks(container) {
-  // Clicking the artist name navigates to that artist's ego-graph
+  // Clicking the artist name opens their Wikipedia page
   container.querySelectorAll(".detail-item-name").forEach(el => {
     el.addEventListener("click", (e) => {
       e.stopPropagation();
       const item = el.closest(".detail-item");
-      navigateTo(item.dataset.mbid, item.dataset.name);
+      openWikipedia(item.dataset.name);
     });
   });
 
@@ -592,6 +598,30 @@ function esc(str) {
   const d = document.createElement("div");
   d.textContent = str;
   return d.innerHTML;
+}
+
+/**
+ * Open an artist's Wikipedia page in a new tab.
+ *
+ * Uses Wikipedia's opensearch API to resolve the name to the correct
+ * article (handles disambiguation, redirects, etc.), then opens it.
+ * Falls back to a Wikipedia search page if the API call fails.
+ */
+async function openWikipedia(name) {
+  if (!name) return;
+  const fallback = `https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent(name)}`;
+
+  try {
+    const resp = await fetch(
+      `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(name)}&limit=1&namespace=0&format=json&origin=*`
+    );
+    const data = await resp.json();
+    // opensearch returns: [query, [titles], [descriptions], [urls]]
+    const url = data[3]?.[0];
+    window.open(url || fallback, "_blank", "noopener");
+  } catch {
+    window.open(fallback, "_blank", "noopener");
+  }
 }
 
 
