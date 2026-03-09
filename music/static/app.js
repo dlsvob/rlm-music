@@ -354,7 +354,15 @@ function buildDetailHtml(node) {
   if (node.end_year) years += `–${node.end_year}`;
   else if (years) years += "–present";
 
-  let html = `<div class="detail-header"><h2>${esc(node.name || node.mbid)}</h2></div>`;
+  // Center artist header with album expand chevron
+  html += `<div class="detail-item-wrapper">`;
+  html += `<div class="detail-header detail-item" data-mbid="${node.mbid}" data-name="${esc(node.name || node.mbid)}">`;
+  html += `<button class="album-toggle" data-mbid="${node.mbid}" data-name="${esc(node.name || node.mbid)}" aria-label="Show albums" title="Show albums">&#9654;</button>`;
+  html += `<h2><span class="detail-item-name">${esc(node.name || node.mbid)}</span></h2>`;
+  html += `</div>`;
+  html += `<div class="album-list hidden" data-mbid="${node.mbid}"></div>`;
+  html += `</div>`;
+
   html += `<div class="detail-meta">`;
   if (node.artist_type) html += node.artist_type;
   if (node.country) html += ` · ${node.country}`;

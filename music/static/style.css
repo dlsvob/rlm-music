@@ -254,7 +254,8 @@ body {
 #detail-close:hover { color: var(--text); }
 
 /* ── Detail content (shared by desktop panel and mobile bottom sheet) ── */
-.detail-header h2 { font-size: 18px; margin-bottom: 4px; }
+.detail-header h2 { font-size: 18px; margin-bottom: 4px; display: inline; }
+.detail-header.detail-item { padding: 4px 0; }
 .detail-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
 .detail-genres { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
 .genre-tag {
