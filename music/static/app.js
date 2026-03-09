@@ -336,13 +336,20 @@ document.getElementById("info-btn")?.addEventListener("click", () => {
   }
 });
 
-// Swipe down on bottom sheet handle to close
+// Swipe down anywhere on the bottom sheet to collapse it.
+// Tracks whether the gesture is a downward swipe vs normal scroll —
+// only triggers if the sheet is scrolled to the top (can't scroll further up).
 let sheetTouchY = 0;
-document.getElementById("bottom-sheet-handle")?.addEventListener("touchstart", e => {
+let sheetScrolledToTop = false;
+bottomSheet.addEventListener("touchstart", e => {
   sheetTouchY = e.touches[0].clientY;
+  // Check if the sheet content is scrolled to the top — if so, a downward
+  // drag should collapse the sheet rather than trying to scroll further
+  sheetScrolledToTop = bottomSheet.scrollTop <= 0;
 });
-document.getElementById("bottom-sheet-handle")?.addEventListener("touchend", e => {
-  if (e.changedTouches[0].clientY - sheetTouchY > 40) closeDetail();
+bottomSheet.addEventListener("touchend", e => {
+  const dy = e.changedTouches[0].clientY - sheetTouchY;
+  if (sheetScrolledToTop && dy > 40) closeDetail();
 });
 
 /** Build the detail HTML for an artist node from the ego-graph data. */
