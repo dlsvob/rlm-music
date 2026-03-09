@@ -229,17 +229,12 @@ function renderEgoGraph(data) {
     .text(d => `+${d.total_edges}`);
 
   // ── Node interactions ──
-  // Single click → open the artist's Wikipedia page in a new tab
+  // Single click → re-center graph on that artist (or show detail if center)
   node.on("click", (event, d) => {
     event.stopPropagation();
-    showDetail(d);
-    openWikipedia(d.name);
-  });
-
-  // Double click → re-center the graph on that artist (ego-graph navigation)
-  node.on("dblclick", (event, d) => {
-    event.stopPropagation();
-    if (d.mbid !== centerMbid) {
+    if (d.mbid === centerMbid) {
+      showDetail(d);
+    } else {
       navigateTo(d.mbid, d.name);
     }
   });
@@ -366,6 +361,7 @@ function buildDetailHtml(node) {
   html += `<div class="detail-header detail-item" data-mbid="${node.mbid}" data-name="${esc(node.name || node.mbid)}">`;
   html += `<button class="album-toggle" data-mbid="${node.mbid}" data-name="${esc(node.name || node.mbid)}" aria-label="Show albums" title="Show albums">&#9654;</button>`;
   html += `<h2><span class="detail-item-name">${esc(node.name || node.mbid)}</span></h2>`;
+  html += `<button class="wiki-btn" data-name="${esc(node.name || node.mbid)}" title="Wikipedia">W</button>`;
   html += `</div>`;
   html += `<div class="album-list hidden" data-mbid="${node.mbid}"></div>`;
   html += `</div>`;
@@ -462,14 +458,22 @@ function groupEdges(mbid, data) {
   return Object.entries(groups);
 }
 
-/** Wire click handlers on detail items: name navigates, chevron toggles albums. */
+/** Wire click handlers on detail items: name navigates, chevron toggles albums, W opens Wikipedia. */
 function wireDetailLinks(container) {
-  // Clicking the artist name opens their Wikipedia page
+  // Wikipedia button opens the artist's page inline
+  container.querySelectorAll(".wiki-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openWikipedia(btn.dataset.name);
+    });
+  });
+
+  // Clicking the artist name re-centers the graph on that artist
   container.querySelectorAll(".detail-item-name").forEach(el => {
     el.addEventListener("click", (e) => {
       e.stopPropagation();
       const item = el.closest(".detail-item");
-      openWikipedia(item.dataset.name);
+      navigateTo(item.dataset.mbid, item.dataset.name);
     });
   });
 
