@@ -1,0 +1,28 @@
+[project]
+name = "rlm-music"
+version = "0.1.0"
+description = "Music lineage knowledge graph — crawl, store, and query artist influence networks"
+requires-python = ">=3.12"
+dependencies = [
+    "duckdb>=1.2.0",
+    "networkx>=3.4",
+    "requests>=2.32.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sse-starlette>=2.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+rlm-music = "music.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["music"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

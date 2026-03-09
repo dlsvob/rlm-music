@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>rlm-music — Lineage Graph</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- ── Top bar: search ── -->
+  <header id="header">
+    <h1>rlm-music</h1>
+    <div id="search-area">
+      <input type="text" id="search-input" placeholder="Search artist..." autocomplete="off">
+      <button id="search-btn">Go</button>
+    </div>
+    <div id="stats-bar"></div>
+  </header>
+
+  <!-- ── Search results dropdown ── -->
+  <div id="search-results" class="hidden"></div>
+
+  <!-- ── Main content ── -->
+  <main id="main">
+    <!-- SVG ego-graph -->
+    <div id="graph-container">
+      <svg id="graph-svg"></svg>
+      <div id="empty-state">
+        <p>Search for an artist to explore their lineage.</p>
+      </div>
+      <div id="legend"></div>
+      <!-- Mobile: button to reopen bottom sheet after dismissal -->
+      <button id="info-btn" class="hidden">i</button>
+    </div>
+
+    <!-- Desktop: detail panel on the right -->
+    <aside id="detail-panel" class="hidden">
+      <button id="detail-close">&times;</button>
+      <div id="detail-content"></div>
+    </aside>
+  </main>
+
+  <!-- ── Mobile: detail as bottom sheet ── -->
+  <div id="bottom-sheet" class="hidden">
+    <div id="bottom-sheet-handle"></div>
+    <div id="bottom-sheet-content"></div>
+  </div>
+
+  <!-- ── Blocking overlay ── -->
+  <div id="overlay" class="hidden">
+    <div class="overlay-spinner"></div>
+    <span id="overlay-text">Loading...</span>
+  </div>
+
+  <script src="/static/d3.v7.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
