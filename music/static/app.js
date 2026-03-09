@@ -609,27 +609,66 @@ function esc(str) {
 }
 
 /**
- * Open an artist's Wikipedia page in a new tab.
+ * Show an artist's Wikipedia page inline in the detail panel / bottom sheet.
  *
- * Uses Wikipedia's opensearch API to resolve the name to the correct
- * article (handles disambiguation, redirects, etc.), then opens it.
- * Falls back to a Wikipedia search page if the API call fails.
+ * Resolves the name to the correct Wikipedia article via opensearch,
+ * then replaces the panel content with an iframe and a back button.
+ * The back button restores the previous detail view.
+ *
+ * Uses Wikipedia's mobile-optimized domain (en.m.wikipedia.org) for
+ * cleaner rendering inside the narrow panel/sheet.
  */
 async function openWikipedia(name) {
   if (!name) return;
-  const fallback = `https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent(name)}`;
+  const fallback = `https://en.m.wikipedia.org/wiki/Special:Search/${encodeURIComponent(name)}`;
 
+  let url = fallback;
   try {
     const resp = await fetch(
       `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(name)}&limit=1&namespace=0&format=json&origin=*`
     );
     const data = await resp.json();
-    // opensearch returns: [query, [titles], [descriptions], [urls]]
-    const url = data[3]?.[0];
-    window.open(url || fallback, "_blank", "noopener");
-  } catch {
-    window.open(fallback, "_blank", "noopener");
+    const resolved = data[3]?.[0];
+    if (resolved) {
+      // Rewrite to mobile Wikipedia for better fit in narrow panel
+      url = resolved.replace("//en.wikipedia.org/", "//en.m.wikipedia.org/");
+    }
+  } catch { /* use fallback */ }
+
+  // Build the iframe view with a back button
+  const iframeHtml = `
+    <div class="wiki-view">
+      <div class="wiki-toolbar">
+        <button class="wiki-back" aria-label="Back to detail">&#8592; Back</button>
+        <a class="wiki-open-ext" href="${esc(url.replace('en.m.', 'en.'))}" target="_blank" rel="noopener" title="Open in new tab">&#8599;</a>
+      </div>
+      <iframe class="wiki-iframe" src="${esc(url)}" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+    </div>
+  `;
+
+  // Replace the current panel/sheet content, saving it for restoration
+  const container = isMobile() ? bottomSheetContent : detailContent;
+  const savedHtml = container.innerHTML;
+
+  container.innerHTML = iframeHtml;
+
+  // Make sure the panel/sheet is visible
+  if (isMobile()) {
+    bottomSheet.classList.remove("hidden");
+    // Expand bottom sheet to full height for reading
+    bottomSheet.classList.add("wiki-fullscreen");
+  } else {
+    detailPanel.classList.remove("hidden");
   }
+
+  // Wire the back button to restore the previous detail content
+  container.querySelector(".wiki-back").addEventListener("click", () => {
+    container.innerHTML = savedHtml;
+    wireDetailLinks(container);
+    if (isMobile()) {
+      bottomSheet.classList.remove("wiki-fullscreen");
+    }
+  });
 }
 
 
