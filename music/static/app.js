@@ -678,20 +678,22 @@ function showWikipediaModal(url, onBack) {
   wikiModal.classList.remove("hidden");
 }
 
-/** Close the Wikipedia modal and clear its iframe to stop loading. */
+/**
+ * Close the Wikipedia modal, clear its iframe, and run the onBack
+ * callback if one was provided. Every dismiss path (×, backdrop click,
+ * back button) triggers navigation so the graph re-centers on the artist.
+ */
 function closeWikiModal() {
+  const cb = wikiOnBack;
   wikiModal.classList.add("hidden");
   wikiIframe.src = "about:blank";
   wikiOnBack = null;
+  if (cb) cb();
 }
 
 // Wire modal buttons once (they persist in the DOM across uses)
 wikiCloseBtn.addEventListener("click", closeWikiModal);
-wikiBackBtn.addEventListener("click", () => {
-  const cb = wikiOnBack;
-  closeWikiModal();
-  if (cb) cb();
-});
+wikiBackBtn.addEventListener("click", closeWikiModal);
 
 // Click on the backdrop (outside the modal box) closes the modal
 wikiModal.addEventListener("click", (e) => {
