@@ -192,7 +192,7 @@ function renderEgoGraph(data) {
     .data(data.nodes).join("g")
     .attr("class", d => {
       let cls = "node";
-      if (d.mbid === centerMbid) cls += " center";
+      if (d.mbid === centerMbid) cls += " center selected";
       const t = (d.artist_type || "").toLowerCase();
       if (["group", "orchestra", "choir"].includes(t)) cls += " group";
       else if (t === "person") cls += " person";

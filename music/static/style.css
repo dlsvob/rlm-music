@@ -170,7 +170,7 @@ body {
 .node.person circle { fill: var(--accent); stroke: var(--accent-dim); }
 .node.group circle  { fill: var(--green); stroke: #238636; }
 .node.other circle  { fill: var(--text-muted); stroke: var(--border); }
-.node.selected circle { stroke: #fff; stroke-width: 3px; }
+.node.selected circle { stroke: #ffe600; stroke-width: 3px; }
 .node.dimmed circle { opacity: 0.15; }
 .node.dimmed text   { opacity: 0.1; }
 
