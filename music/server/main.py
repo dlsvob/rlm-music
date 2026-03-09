@@ -399,6 +399,39 @@ async def get_graph():
     return {"nodes": nodes, "links": links}
 
 
+@app.get("/api/artist/{mbid}/releases")
+async def get_artist_releases(mbid: str):
+    """Fetch an artist's albums (release groups) from MusicBrainz.
+
+    Calls the MusicBrainz browse API for release groups, extracts
+    Wikipedia URLs, and returns a sorted list. Used by the frontend
+    to show discography under each artist in the detail panel.
+
+    Wrapped in asyncio.to_thread because MusicBrainzClient._get() uses
+    time.sleep for rate limiting, which would block the async event loop.
+
+    Args:
+        mbid: MusicBrainz UUID of the artist.
+
+    Returns:
+        JSON list of release group dicts with title, year, wikipedia_url, mbid.
+    """
+    # Try to get the artist name from our DB (for better Wikipedia fallback URLs)
+    artist_name = ""
+    if DB_PATH.exists():
+        con = duckdb.connect(str(DB_PATH), read_only=True)
+        row = con.execute("SELECT name FROM artists WHERE mbid = ?", [mbid]).fetchone()
+        con.close()
+        if row:
+            artist_name = row[0]
+
+    client = MusicBrainzClient()
+
+    # Run in a thread to avoid blocking the async event loop during rate-limit sleeps
+    releases = await asyncio.to_thread(client.fetch_release_groups, mbid, artist_name)
+    return releases
+
+
 @app.get("/api/artist/{mbid}")
 async def get_artist(mbid: str):
     """Get detailed info for a single artist, including lineage relationships.

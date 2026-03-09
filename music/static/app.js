@@ -370,7 +370,14 @@ function buildDetailHtml(node) {
         const yr = item.begin_year ? ` (${item.begin_year})` : "";
         // Orange dot for unexpanded nodes to hint "tap to explore"
         const dot = (!item.expanded && item.mbid !== mbid) ? '<span class="expand-dot"></span>' : '';
-        html += `<div class="detail-item" data-mbid="${item.mbid}" data-name="${esc(item.name)}">${dot}${esc(item.name)}${yr}</div>`;
+        // Each artist gets a wrapper: the artist row (with album chevron) + a collapsible album sub-list
+        html += `<div class="detail-item-wrapper">`;
+        html += `<div class="detail-item" data-mbid="${item.mbid}" data-name="${esc(item.name)}">`;
+        html += `<button class="album-toggle" data-mbid="${item.mbid}" data-name="${esc(item.name)}" aria-label="Show albums" title="Show albums">&#9654;</button>`;
+        html += `${dot}<span class="detail-item-name">${esc(item.name)}${yr}</span>`;
+        html += `</div>`;
+        html += `<div class="album-list hidden" data-mbid="${item.mbid}"></div>`;
+        html += `</div>`;
       }
       html += `</div>`;
     }
@@ -434,11 +441,65 @@ function groupEdges(mbid, data) {
   return Object.entries(groups);
 }
 
-/** Wire click handlers on detail items to navigate to that artist. */
+/** Wire click handlers on detail items: name navigates, chevron toggles albums. */
 function wireDetailLinks(container) {
-  container.querySelectorAll(".detail-item").forEach(el => {
-    el.addEventListener("click", () => {
-      navigateTo(el.dataset.mbid, el.dataset.name);
+  // Clicking the artist name navigates to that artist's ego-graph
+  container.querySelectorAll(".detail-item-name").forEach(el => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const item = el.closest(".detail-item");
+      navigateTo(item.dataset.mbid, item.dataset.name);
+    });
+  });
+
+  // Clicking the chevron toggles the album sub-list
+  container.querySelectorAll(".album-toggle").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const mbid = btn.dataset.mbid;
+      const name = btn.dataset.name;
+      const wrapper = btn.closest(".detail-item-wrapper");
+      const albumList = wrapper.querySelector(".album-list");
+
+      // Toggle open/closed
+      const isOpen = !albumList.classList.contains("hidden");
+      if (isOpen) {
+        albumList.classList.add("hidden");
+        btn.classList.remove("open");
+        return;
+      }
+
+      // Open it
+      albumList.classList.remove("hidden");
+      btn.classList.add("open");
+
+      // If already loaded, don't re-fetch
+      if (albumList.dataset.loaded) return;
+
+      // Lazy-load albums from the API
+      albumList.innerHTML = '<div class="album-loading">Loading albums...</div>';
+      fetch(`/api/artist/${mbid}/releases`)
+        .then(resp => {
+          if (!resp.ok) throw new Error("Failed to load");
+          return resp.json();
+        })
+        .then(releases => {
+          albumList.dataset.loaded = "1";
+          if (!releases.length) {
+            albumList.innerHTML = '<div class="album-loading">No albums found</div>';
+            return;
+          }
+          albumList.innerHTML = releases.map(r => {
+            const yr = r.year ? `<span class="album-year">${r.year}</span>` : "";
+            if (r.wikipedia_url) {
+              return `<div class="album-item"><a href="${esc(r.wikipedia_url)}" target="_blank" rel="noopener">${esc(r.title)}</a>${yr}</div>`;
+            }
+            return `<div class="album-item"><span>${esc(r.title)}</span>${yr}</div>`;
+          }).join("");
+        })
+        .catch(() => {
+          albumList.innerHTML = '<div class="album-loading">Could not load albums</div>';
+        });
     });
   });
 }
