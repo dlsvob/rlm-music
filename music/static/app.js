@@ -355,7 +355,7 @@ function buildDetailHtml(node) {
   else if (years) years += "–present";
 
   // Center artist header with album expand chevron
-  html += `<div class="detail-item-wrapper">`;
+  let html = `<div class="detail-item-wrapper">`;
   html += `<div class="detail-header detail-item" data-mbid="${node.mbid}" data-name="${esc(node.name || node.mbid)}">`;
   html += `<button class="album-toggle" data-mbid="${node.mbid}" data-name="${esc(node.name || node.mbid)}" aria-label="Show albums" title="Show albums">&#9654;</button>`;
   html += `<h2><span class="detail-item-name">${esc(node.name || node.mbid)}</span></h2>`;
