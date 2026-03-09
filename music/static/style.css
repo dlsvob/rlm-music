@@ -51,6 +51,16 @@ body {
   color: var(--accent);
   white-space: nowrap;
 }
+#author-link {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  font-size: 12px;
+  white-space: nowrap;
+}
+#author-link:hover { color: #0a66c2; }
 #search-area {
   display: flex;
   gap: 6px;
