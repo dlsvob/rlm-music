@@ -229,13 +229,14 @@ function renderEgoGraph(data) {
     .text(d => `+${d.total_edges}`);
 
   // ── Node interactions ──
-  // Single click → re-center graph on that artist (or show detail if center)
+  // Click → show Wikipedia inline first; back button re-centers graph on that artist.
+  // For the center node, just show Wikipedia (already centered).
   node.on("click", (event, d) => {
     event.stopPropagation();
     if (d.mbid === centerMbid) {
-      showDetail(d);
+      openWikipedia(d.name);
     } else {
-      navigateTo(d.mbid, d.name);
+      openWikipediaAndNavigate(d.name, d.mbid);
     }
   });
 
@@ -468,12 +469,12 @@ function wireDetailLinks(container) {
     });
   });
 
-  // Clicking the artist name re-centers the graph on that artist
+  // Clicking the artist name shows Wikipedia first, then re-centers on back
   container.querySelectorAll(".detail-item-name").forEach(el => {
     el.addEventListener("click", (e) => {
       e.stopPropagation();
       const item = el.closest(".detail-item");
-      navigateTo(item.dataset.mbid, item.dataset.name);
+      openWikipediaAndNavigate(item.dataset.name, item.dataset.mbid);
     });
   });
 
@@ -631,13 +632,17 @@ function esc(str) {
  * Show a Wikipedia URL inline in the detail panel / bottom sheet.
  *
  * Replaces the panel content with an iframe and a back button.
- * The back button restores the previous detail view. Used by both
- * artist name clicks (via openWikipedia) and album link clicks.
+ * The back button either restores the previous detail view, or runs
+ * an optional onBack callback (used to navigate to a new artist).
  *
  * Uses Wikipedia's mobile-optimized domain (en.m.wikipedia.org) for
  * cleaner rendering inside the narrow panel/sheet.
+ *
+ * @param {string} url - The Wikipedia URL to display.
+ * @param {Function|null} onBack - Optional callback to run when back is pressed.
+ *                                  If null, restores the previous panel content.
  */
-function showWikipediaInline(url) {
+function showWikipediaInline(url, onBack) {
   // Rewrite to mobile Wikipedia for better fit in narrow panel
   const mobileUrl = url.replace("//en.wikipedia.org/", "//en.m.wikipedia.org/");
   const desktopUrl = url.replace("//en.m.wikipedia.org/", "//en.wikipedia.org/");
@@ -652,7 +657,6 @@ function showWikipediaInline(url) {
     </div>
   `;
 
-  // Replace the current panel/sheet content, saving it for restoration
   const container = isMobile() ? bottomSheetContent : detailContent;
   const savedHtml = container.innerHTML;
 
@@ -665,33 +669,57 @@ function showWikipediaInline(url) {
     detailPanel.classList.remove("hidden");
   }
 
-  // Wire the back button to restore the previous detail content
   container.querySelector(".wiki-back").addEventListener("click", () => {
-    container.innerHTML = savedHtml;
-    wireDetailLinks(container);
     if (isMobile()) {
       bottomSheet.classList.remove("wiki-fullscreen");
+    }
+    if (onBack) {
+      // Custom back action (e.g. navigate to a new artist)
+      onBack();
+    } else {
+      // Default: restore the previous panel content
+      container.innerHTML = savedHtml;
+      wireDetailLinks(container);
     }
   });
 }
 
 /**
  * Resolve an artist name to a Wikipedia URL via opensearch, then show it inline.
+ * Back button restores the current detail view.
  */
 async function openWikipedia(name) {
   if (!name) return;
-  const fallback = `https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent(name)}`;
+  const url = await resolveWikipediaUrl(name);
+  showWikipediaInline(url, null);
+}
 
-  let url = fallback;
+/**
+ * Show Wikipedia for an artist, then navigate to their ego-graph on back.
+ * This is the main click flow: click node → read about them → back → graph re-centers.
+ */
+async function openWikipediaAndNavigate(name, mbid) {
+  if (!name) return;
+  const url = await resolveWikipediaUrl(name);
+  showWikipediaInline(url, () => {
+    navigateTo(mbid, name);
+  });
+}
+
+/**
+ * Resolve an artist/topic name to a Wikipedia URL via the opensearch API.
+ */
+async function resolveWikipediaUrl(name) {
+  const fallback = `https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent(name)}`;
   try {
     const resp = await fetch(
       `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(name)}&limit=1&namespace=0&format=json&origin=*`
     );
     const data = await resp.json();
-    url = data[3]?.[0] || fallback;
-  } catch { /* use fallback */ }
-
-  showWikipediaInline(url);
+    return data[3]?.[0] || fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 
